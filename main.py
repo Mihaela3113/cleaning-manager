@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS PROGRAMARI (
 
 conexiune.commit()
 
+
+
 def meniu_principal():
    
     print("\nCLEANING MANAGER\n")
@@ -45,6 +47,12 @@ def meniu_principal():
     alegere=input("\nAlegeti o optiune: ")
     if alegere=="1":
         programare_noua()
+    elif alegere=="2":
+        afisare_clienti()
+    elif alegere=="3":
+        afiseaza_programari()
+    elif alegere=="4":
+        afisare_venituri()
     else:
         print("Optiune invalida. Va rugam sa alegeti o optiune valida.") 
         
@@ -78,8 +86,8 @@ def programare_noua():
 
     pret=float(input("Pretul estimativ:"))
 
-    data=input("Data programarii: ")
-
+    data = input("Data programarii: ")
+    
     ora=input("Ora programarii: ")
 
     cursor.execute(
@@ -127,6 +135,138 @@ def programare_noua():
     conexiune.commit()
     
     print("\nProgramarea a fost adaugata cu succes.")
+
+def afiseaza_programari():
+    print("\nPROGRAMARI\n")
+    cursor.execute("""
+    SELECT
+            PROGRAMARI.id_programare,
+            CLIENTI.nume,
+            CLIENTI.telefon,
+            CLIENTI.adresa,
+            PROGRAMARI.tip_curatenie,
+            PROGRAMARI.suprafata,
+            PROGRAMARI.pret,
+            PROGRAMARI.data,
+            PROGRAMARI.ora,
+            PROGRAMARI.status
+        FROM PROGRAMARI
+        JOIN CLIENTI
+        ON PROGRAMARI.id_client = CLIENTI.id_client
+        WHERE PROGRAMARI.status != "Finalizata"
+        ORDER BY PROGRAMARI.data, PROGRAMARI.ora
+    """)
+    programari = cursor.fetchall()
+
+    if not programari:
+        print("Nu exista programari.")
+        return
+
+    for programare in programari:
+    
+        print(f"""
+        ID Programare: {programare[0]}
+        Nume Client: {programare[1]}
+        Telefon Client: {programare[2]}
+        Adresa Client: {programare[3]}
+        Tip Curatenie: {programare[4]}
+        Suprafata: {programare[5]} m²
+        Pret: {programare[6]} RON
+        Data: {programare[7]}
+        Ora: {programare[8]}
+        Status: {programare[9]}
+        """)
+
+    alegere = input("Introduceti ID-ul programarii: ")
+
+    if alegere == "":
+        return
+
+    print("\nCe doriti sa faceti?")
+    print("1. Finalizeaza programarea")
+    print("2. Modifica programarea")
+
+    actiune = input("Alegeti o optiune: ")
+
+    if actiune == "1":
+
+        cursor.execute("""
+        UPDATE PROGRAMARI
+        SET status = "Finalizata"
+        WHERE id_programare = ?
+        """, (alegere,))
+
+        if cursor.rowcount > 0:
+         print("Programarea a fost marcata ca finalizata.")
+        else:
+         print("Nu exista o programare cu acest ID.")
+
+    elif actiune == "2":
+
+        ora_noua = input("Introduceti ora noua: ")
+        data_noua = input("Introduceti data noua: ")
+
+        cursor.execute("""
+        UPDATE PROGRAMARI
+        SET ora = ?, data = ?
+        WHERE id_programare = ?
+        """, (ora_noua, data_noua, alegere))
+
+        if cursor.rowcount > 0:
+          print("Programarea a fost modificata cu succes.")
+        else:
+          print("Nu exista o programare cu acest ID.")
+
+    else:
+        print("Optiune invalida.")
+
+    conexiune.commit()
+
+    
+def afisare_clienti():
+    print("\nCLIENTI\n")
+
+    cursor.execute("""
+    SELECT NUME, TELEFON FROM CLIENTI
+    """)
+
+    clienti = cursor.fetchall()
+
+    if not clienti:
+        print("Nu exista clienti.")
+        return
+
+    for client in clienti:
+        print(f"""
+        Nume Client: {client[0]}
+        Telefon Client: {client[1]}
+        """)
+
+
+def afisare_venituri():
+    print("\nVENITURI\n")
+
+    cursor.execute("""
+    SELECT SUM(PRET) as venituri FROM PROGRAMARI WHERE status="Finalizata" 
+    """)
+
+    venituri=cursor.fetchone()[0]
+
+    if venituri is None:
+        venituri=0
+
+    print(f"Venituri totale: {venituri} RON")
+
+    cursor.execute("""
+    SELECT COUNT(*) as numar_programari FROM PROGRAMARI WHERE status="Finalizata" 
+    """)
+
+    numar_programari = cursor.fetchone()[0]
+
+    print(f"Număr programări finalizate: {numar_programari}")
+    
+
+    conexiune.commit()
 
 meniu_principal()
 
