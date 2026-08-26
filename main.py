@@ -1,6 +1,8 @@
 import sqlite3
 import os
 from dotenv import load_dotenv
+from datetime import datetime,timedelta
+
 
 load_dotenv()
 
@@ -33,8 +35,6 @@ CREATE TABLE IF NOT EXISTS PROGRAMARI (
 
 conexiune.commit()
 
-
-
 def meniu_principal():
    
     print("\nCLEANING MANAGER\n")
@@ -42,7 +42,6 @@ def meniu_principal():
     print("2. Clienti")
     print("3. Programari")
     print("4. Venituri")
-    print("5. Rapoarte")
  
     alegere=input("\nAlegeti o optiune: ")
     if alegere=="1":
@@ -56,8 +55,7 @@ def meniu_principal():
     else:
         print("Optiune invalida. Va rugam sa alegeti o optiune valida.") 
         
-        
-
+    
 def programare_noua():
     print("\nPROGRAMARE NOUA")
 
@@ -86,7 +84,13 @@ def programare_noua():
 
     pret=float(input("Pretul estimativ:"))
 
-    data = input("Data programarii: ")
+    data = input("Data programarii (ZZ.LL.AAAA): ")
+    try:
+     data = datetime.strptime(data, "%d.%m.%Y").strftime("%Y-%m-%d")
+    except ValueError:
+     print("Data invalida. Folositi formatul ZZ.LL.AAAA.")
+     return
+
     
     ora=input("Ora programarii: ")
 
@@ -163,6 +167,11 @@ def afiseaza_programari():
         return
 
     for programare in programari:
+         
+        data_afisare = datetime.strptime(
+        programare[7],
+        "%Y-%m-%d"
+        ).strftime("%d.%m.%Y")
     
         print(f"""
         ID Programare: {programare[0]}
@@ -172,7 +181,7 @@ def afiseaza_programari():
         Tip Curatenie: {programare[4]}
         Suprafata: {programare[5]} m²
         Pret: {programare[6]} RON
-        Data: {programare[7]}
+        Data: {data_afisare}
         Ora: {programare[8]}
         Status: {programare[9]}
         """)
@@ -204,8 +213,13 @@ def afiseaza_programari():
     elif actiune == "2":
 
         ora_noua = input("Introduceti ora noua: ")
-        data_noua = input("Introduceti data noua: ")
-
+        data_noua = input("Introduceti data noua (ZZ.LL.AAAA): ")
+        try:
+         data_noua = datetime.strptime(data_noua, "%d.%m.%Y").strftime("%Y-%m-%d")
+        except ValueError:
+         print("Data invalida. Folositi formatul ZZ.LL.AAAA.")
+         return
+        
         cursor.execute("""
         UPDATE PROGRAMARI
         SET ora = ?, data = ?
@@ -221,8 +235,7 @@ def afiseaza_programari():
         print("Optiune invalida.")
 
     conexiune.commit()
-
-    
+  
 def afisare_clienti():
     print("\nCLIENTI\n")
 
@@ -241,33 +254,44 @@ def afisare_clienti():
         Nume Client: {client[0]}
         Telefon Client: {client[1]}
         """)
-
+    meniu_principal()
 
 def afisare_venituri():
     print("\nVENITURI\n")
 
-    cursor.execute("""
-    SELECT SUM(PRET) as venituri FROM PROGRAMARI WHERE status="Finalizata" 
-    """)
+    an = input("Introduceti anul: ")
+    luna = input("Introduceti luna : ")
 
-    venituri=cursor.fetchone()[0]
+    if len(luna) == 1:
+        luna = "0" + luna
+
+    cursor.execute("""
+        SELECT SUM(pret)
+        FROM PROGRAMARI
+        WHERE status = "Finalizata"
+        AND strftime('%Y', data) = ?
+        AND strftime('%m', data) = ?
+    """, (an, luna))
+
+    venituri = cursor.fetchone()[0]
 
     if venituri is None:
-        venituri=0
-
-    print(f"Venituri totale: {venituri} RON")
+        venituri = 0
 
     cursor.execute("""
-    SELECT COUNT(*) as numar_programari FROM PROGRAMARI WHERE status="Finalizata" 
-    """)
+        SELECT COUNT(*)
+        FROM PROGRAMARI
+        WHERE status = "Finalizata"
+        AND strftime('%Y', data) = ?
+        AND strftime('%m', data) = ?
+    """, (an, luna))
 
     numar_programari = cursor.fetchone()[0]
 
-    print(f"Număr programări finalizate: {numar_programari}")
-    
-
-    conexiune.commit()
-
+    print(f"\nRAPORT {luna}.{an}")
+    print(f"Venituri: {venituri} RON")
+    print(f"Programari finalizate: {numar_programari}")
+   
 meniu_principal()
 
 
