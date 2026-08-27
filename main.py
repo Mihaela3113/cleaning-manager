@@ -33,6 +33,16 @@ CREATE TABLE IF NOT EXISTS PROGRAMARI (
 )
 """)
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS CHELTUIELI (
+    id_cheltuiala INTEGER PRIMARY KEY AUTOINCREMENT,
+    descriere TEXT NOT NULL,
+    categorie TEXT NOT NULL,
+    pret REAL NOT NULL,
+    data TEXT NOT NULL
+)
+""")
+
 conexiune.commit()
 
 def meniu_principal():
@@ -42,7 +52,8 @@ def meniu_principal():
     print("2. Clienti")
     print("3. Programari")
     print("4. Venituri")
- 
+    print("5. Adauga cheltuieli realizate")
+    print("6. Afiseaza cheltuieli")
     alegere=input("\nAlegeti o optiune: ")
     if alegere=="1":
         programare_noua()
@@ -52,6 +63,10 @@ def meniu_principal():
         afiseaza_programari()
     elif alegere=="4":
         afisare_venituri()
+    elif alegere=="5":
+        adaugare_cheltuieli()
+    elif alegere=="6":
+        afisare_cheltuieli()
     else:
         print("Optiune invalida. Va rugam sa alegeti o optiune valida.") 
         
@@ -66,7 +81,7 @@ def programare_noua():
     print("\nTip curatenie:")
     print("1. Intretinere")
     print("2. Generala")
-    print("3. O camera")
+    print("3. Dupa renovare")
 
     alegere_tip = input("Alege tipul de curatenie: ")
 
@@ -75,7 +90,7 @@ def programare_noua():
     elif alegere_tip == "2":
         tip_curatenie = "Generala"
     elif alegere_tip == "3":
-        tip_curatenie = "O camera"
+        tip_curatenie = "Dupa renovare"
     else:
         print("Optiune invalida.")
         return
@@ -288,10 +303,117 @@ def afisare_venituri():
 
     numar_programari = cursor.fetchone()[0]
 
+    if numar_programari is None:
+        numar_programari = 0
+
+    cursor.execute("""
+        SELECT SUM(pret)
+        FROM CHELTUIELI
+        WHERE strftime('%Y', data) = ?
+        AND strftime('%m', data) = ?
+    """, (an, luna))
+
+    cheltuieli = cursor.fetchone()[0]
+
+    if cheltuieli is None:
+        cheltuieli = 0 
+
+    profit = venituri - cheltuieli   
+
     print(f"\nRAPORT {luna}.{an}")
-    print(f"Venituri: {venituri} RON")
     print(f"Programari finalizate: {numar_programari}")
-   
+    print(f"Venituri cumulate: {venituri} RON")
+    print(f"Cheltuieli: {cheltuieli} RON")
+    print(f"Profit: {profit} RON")
+
+def adaugare_cheltuieli():
+    print("\nADAUGARE CHELTUIELI\n")
+
+    descriere=input("Descriere cheltuiala: ")
+
+    print("\nCategorie:")
+    print("1. Produse de curatenie")
+    print("2. Consumabile")
+    print("3. Echipamente")
+    print("4. Salarii")
+    print("5. Alte cheltuieli")
+
+    alegere_categorie = input("Alege categoria: ")
+    if alegere_categorie == "1":
+        categorie = "Produse de curatenie"
+    elif alegere_categorie == "2":
+        categorie = "Consumabile"
+    elif alegere_categorie == "3":
+        categorie = "Echipamente"
+    elif alegere_categorie == "4":
+        categorie = "Salarii"
+    elif alegere_categorie == "5":
+        categorie = "Alte cheltuieli"
+    else:
+        print("Optiune invalida.")
+        return
+
+    pret=float(input("Pretul cheltuielii: "))
+    data = input("Data cheltuielii (ZZ.LL.AAAA): ")
+    try:
+     data = datetime.strptime(data, "%d.%m.%Y").strftime("%Y-%m-%d")
+    except ValueError:
+     print("Data invalida. Folositi formatul ZZ.LL.AAAA.")
+     return
+
+    cursor.execute(
+        """
+        INSERT INTO CHELTUIELI
+        (descriere, categorie, pret, data)
+        VALUES (?, ?, ?, ?)
+        """,
+        (
+            descriere,
+            categorie,
+            pret,
+            data
+        )
+    )
+    conexiune.commit()
+    print("\nCheltuiala a fost adaugata cu succes.")
+
+def afisare_cheltuieli():
+    print("\nCHELTUIELI\n")
+
+    an=input("Introduceti anul: ")
+    luna=input("Introduceti luna: ")
+
+    if len(luna) == 1:
+        luna = "0" + luna
+
+    cursor.execute("""
+        SELECT descriere, categorie, pret, data
+        FROM CHELTUIELI
+        WHERE strftime('%Y', data) = ?
+        AND strftime('%m', data) = ?
+    """, (an, luna)
+    )
+
+    cheltuieli = cursor.fetchall()
+
+    if not cheltuieli:
+        print("Nu exista cheltuieli in aceasta perioada.")
+        return  
+
+    print(f"\nCHELTUIELI {luna}.{an}\n")
+    for cheltuiala in cheltuieli:
+        data_afisare = datetime.strptime(
+        cheltuiala[3],
+        "%Y-%m-%d"
+        ).strftime("%d.%m.%Y")
+    
+        print(f"""
+        Descriere: {cheltuiala[0]}
+        Categorie: {cheltuiala[1]}
+        Pret: {cheltuiala[2]} RON
+        Data: {data_afisare}
+        """)    
+        
 meniu_principal()
 
 
